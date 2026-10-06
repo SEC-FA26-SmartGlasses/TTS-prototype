@@ -1,2 +1,5 @@
 # put the libraries that you use into here
 # there will be merge conflicts but they should be easy to resolve
+pyaudio
+openwakeword
+numpy
