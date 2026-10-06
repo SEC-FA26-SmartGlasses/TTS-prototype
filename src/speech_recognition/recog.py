@@ -56,7 +56,8 @@ def get_command_audio(audio_stream, vad_iterator):
 
 
 if __name__ == "__main__":
-    # initialize the voice models
+    # how to initialize:
+    # initialize the voice models and microphone capture
     mic = init_mic_capture()
 
     ww_model = init_ww_model("hey_jarvis_v0.1")
@@ -66,12 +67,13 @@ if __name__ == "__main__":
         vad_model,
         sampling_rate=16000,
         threshold=0.5,
-        min_silence_duration_ms=1000,
+        min_silence_duration_ms=700,
         speech_pad_ms=100,
     )
 
     # speech recognition model
     asr_model = pipeline("automatic-speech-recognition", model="nvidia/parakeet-tdt-0.6b-v3")
+    asr_model.model.generation_config.max_new_tokens = 1000
     
     while True:
         wait_for_wake_word(mic, ww_model)
@@ -85,8 +87,9 @@ if __name__ == "__main__":
         # feed audio back into ASR model
         out = asr_model({
             "raw": audio_np,
-            "sampling_rate": 16000
-        })
+            "sampling_rate": 16000,
+            }
+        )
 
         print(out["text"])
 
