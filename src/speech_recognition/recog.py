@@ -2,8 +2,10 @@
 import pyaudio
 import openwakeword
 import numpy as np
+import silero_vad
+from transformers import pipeline
 
-CHUNK_SIZE = 1280
+CHUNK_SIZE = 512
 
 def init_mic_capture():
     FORMAT = pyaudio.paInt16
@@ -21,21 +23,72 @@ def init_ww_model(model_path):
     return model
 
 def wait_for_wake_word(audio_stream, ww_model, threshold=0.7):
+    ww_model.reset()
+
     while True:
         audio = np.frombuffer(audio_stream.read(CHUNK_SIZE), dtype=np.int16)
         prediction = list(ww_model.predict(audio).values())[0]
         if prediction >= threshold:
             break
-        
+
+    return
+
+def get_command_audio(audio_stream, vad_iterator):
+    vad_iterator.reset_states()
+    frames = []
+    started = False
+    while True:
+        data = audio_stream.read(CHUNK_SIZE)
+        audio_chunk = np.frombuffer(data, dtype=np.int16)
+        audio_chunk = audio_chunk.astype(np.float32) / (2**15)
+
+        speech_event = vad_iterator(audio_chunk)
+        if speech_event:
+            if "start" in speech_event:
+                started = True
+            elif "end" in speech_event:
+                break
+
+        if started:
+            frames.append(data)
+    return b"".join(frames)
 
 
 
-# while testing, try to keep everything inside of a block like this
-# these won't get called when the module is imported but it will be called
-# if you try to run the file
 if __name__ == "__main__":
-    chunk_size = 1280
-    mic = init_mic_capture() # this will use default device
+    # initialize the voice models
+    mic = init_mic_capture()
+
     ww_model = init_ww_model("hey_jarvis_v0.1")
-    wait_for_wake_word(mic, ww_model)
-    print("hi!")
+
+    vad_model = silero_vad.load_silero_vad()
+    vad_iterator = silero_vad.VADIterator(
+        vad_model,
+        sampling_rate=16000,
+        threshold=0.5,
+        min_silence_duration_ms=1000,
+        speech_pad_ms=100,
+    )
+
+    # speech recognition model
+    asr_model = pipeline("automatic-speech-recognition", model="nvidia/parakeet-tdt-0.6b-v3")
+    
+    while True:
+        wait_for_wake_word(mic, ww_model)
+        print("What is your command?")
+
+        # this will extract one segment of audio
+        # it will stop after 1 second of silence
+        command_audio = get_command_audio(mic, vad_iterator) 
+        audio_np = np.frombuffer(command_audio, dtype=np.int16)
+
+        # feed audio back into ASR model
+        out = asr_model({
+            "raw": audio_np,
+            "sampling_rate": 16000
+        })
+
+        print(out["text"])
+
+
+  

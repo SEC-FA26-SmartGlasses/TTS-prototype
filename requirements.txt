@@ -3,3 +3,6 @@
 pyaudio
 openwakeword
 numpy
+silero_vad
+transformers
+ffmpeg
