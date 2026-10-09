@@ -3,7 +3,7 @@ import pyaudio
 from io import BytesIO
 from pydub import AudioSegment
 
-#function to setup gtts
+# sfunction to setup gtts
 def setup_google_tts(text):
 
     tts = gTTS(text=text, lang="en", slow=False)
@@ -49,4 +49,4 @@ def output_audio(text):
         p.terminate()
 
 if __name__ == "__main__":
-    output_audio(text)
+    output_audio("Test message")
