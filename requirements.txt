@@ -8,3 +8,4 @@ transformers
 ffmpeg
 pydub
 gtts
+opencv-python
