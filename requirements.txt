@@ -6,3 +6,5 @@ numpy
 silero_vad
 transformers
 ffmpeg
+pydub
+gtts
