@@ -6,3 +6,7 @@ numpy
 silero_vad
 transformers
 ffmpeg
+pytesseract
+PIL
+Pillow
+leptonica
