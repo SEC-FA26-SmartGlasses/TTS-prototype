@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from skimage.restoration import estimate_sigma
+from ultralytics import YOLO
 
 ## Measure the image quality ##
 def analyze_quality(gray):
@@ -92,16 +93,16 @@ def filter_image(image):
     # Convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # Measure quality of image
+    # Measure image quality
     quality = analyze_quality(gray)
     processed = gray.copy()
     operations = ["grayscale"]
 
     # CLAHE for brightness/contrast
-    if quality["brightness"] < 80 or quality["contrast"] < 35:
+    if quality["brightness"] < 120 or quality["contrast"] < 35:
         clahe = cv2.createCLAHE(
             clipLimit=2.0,
-            tileGridSize=(8, 8),
+            tileGridSize=(8, 8)
         )
         processed = clahe.apply(processed)
         operations.append("CLAHE")
@@ -112,15 +113,17 @@ def filter_image(image):
             processed,
             d=5,
             sigmaColor=35,
-            sigmaSpace=35,
+            sigmaSpace=35
         )
         operations.append("bilateral_denoising")
 
     # Adaptive thresholding for shadowed text
     if quality["lighting"] > 25:
-        # Ensure correct size
         min_dim = min(processed.shape)
-        block_size = min(31, min_dim if min_dim % 2 else min_dim - 1)
+        block_size = min(
+            31,
+            min_dim if min_dim % 2 else min_dim - 1
+        )
 
         if block_size >= 3:
             processed = cv2.adaptiveThreshold(
@@ -129,9 +132,11 @@ def filter_image(image):
                 cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                 cv2.THRESH_BINARY,
                 block_size,
-                10,
+                10
             )
             operations.append("adaptive_threshold")
+
+    return processed
 
 ## Process the image ##
 def process_image(image, yolo_model, padding=5):
@@ -142,26 +147,29 @@ def process_image(image, yolo_model, padding=5):
         or image.ndim != 3
         or image.shape[2] != 3
     ):
-        return [], "retake"
+        return {}
 
     h, w = image.shape[:2]
-    processed_crops = []
+    processed_crops = {}
 
     # Run YOLO
-    results = yolo_model(image)
-    if not results or results[0].boxes is None:
-        return [], "retake"
+    model = YOLO(yolo_model)
+    results = model(image)
 
-    # Extract data
+    if not results or results[0].boxes is None:
+        return {}
+
+    # Extract detection data
     boxes = results[0].boxes.xyxy.cpu().numpy()
     class_ids = results[0].boxes.cls.cpu().numpy().astype(int)
     names = yolo_model.names
 
     # Process each detection
-    for box, class_id in zip(boxes, class_ids):
+    for index, (box, class_id) in enumerate(zip(boxes, class_ids)):
 
         class_name = names[class_id]
 
+        # Skip picture detections
         if class_name.lower() == "picture":
             continue
 
@@ -170,19 +178,28 @@ def process_image(image, yolo_model, padding=5):
         # Add padding within image boundaries
         x1 = max(0, x1 - padding)
         y1 = max(0, y1 - padding)
-        x2 = min(image_width, x2 + padding)
-        y2 = min(image_height, y2 + padding)
+        x2 = min(w, x2 + padding)
+        y2 = min(h, y2 + padding)
 
+        # Skip invalid bounding boxes
         if x2 <= x1 or y2 <= y1:
             continue
 
+        # Extract crop
         crop = image[y1:y2, x1:x2]
-        correct_crop = correct_skew(crop)
-        filter_crop = filter_image(correct_crop)
 
-        processed_crops.append(filter_crop)
+        # Correct skew
+        corrected_crop = correct_skew(crop)
 
-    # Return processed image along with operations performed
-    ## Operations can tell us how to adjust threshold values for ocr performance
-    quality["operations"] = operations
-    return processed
+        # Apply image filters
+        filtered_crop, operations = filter_image(corrected_crop)
+
+        # Store results
+        processed_crops[index] = {
+            "class_id": int(class_id),
+            "class_name": class_name,
+            "coordinates": boxes,
+            "processed_crop": filtered_crop,
+        }
+
+    return processed_crops
