@@ -6,6 +6,9 @@ numpy
 silero_vad
 transformers
 ffmpeg
+ultralytics
+opencv-python
+scikit-image
 pydub
 gtts
 opencv-python
