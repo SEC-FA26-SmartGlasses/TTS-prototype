@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from skimage.restoration import estimate_sigma
+from ultralytics import YOLO
 
 ## Measure the image quality ##
 def analyze_quality(gray):
@@ -201,3 +202,7 @@ def process_image(image, yolo_model, padding=5):
         }
 
     return processed_crops
+
+
+def init_yolo_model(path):
+    return YOLO(path)

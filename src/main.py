@@ -1,5 +1,6 @@
 import speech_recognition.recog as sr
 import text_to_speech.output_tts as tts
+import text_extraction.image_process as im
 import re
 import cv2
 import threading
@@ -28,6 +29,7 @@ def voice_loop():
     mic = sr.init_mic_capture()
     ww_model = sr.init_ww_model("hey_jarvis_v0.1")
     vad_iterator, asr_model = sr.init_asr_models()
+    yolo_model = im.init_yolo_model("./src/models/text_extraction_model.pt")
 
     while not stop_event.is_set():
         sr.wait_for_wake_word(mic, ww_model)
@@ -47,7 +49,8 @@ def voice_loop():
             with frame_lock:
                 captured_frame = frame
 
-            # text = ocr.read_text(frame)
+            processed_crops = im.process_image(frame, yolo_model, 15)
+            print(processed_crops)
 
 
 def main():

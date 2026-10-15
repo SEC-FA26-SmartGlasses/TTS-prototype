@@ -12,3 +12,4 @@ scikit-image
 pydub
 gtts
 opencv-python
+PyWavelets
