@@ -2,7 +2,7 @@ import pytesseract
 from PIL import Image
 
 
-config_oem_psm = r'--oem 3 --psm 11' 
+config_oem_psm = r'--oem 3 --psm 6' 
 # psm 6 for "single uniform block of text, best for paragraphs/labels" 
 # assuming input "blocks" are boxed text in image
 
