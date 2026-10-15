@@ -7,9 +7,7 @@ silero_vad
 transformers
 ffmpeg
 pytesseract
-PIL
 Pillow
-leptonica
 ultralytics
 opencv-python
 scikit-image

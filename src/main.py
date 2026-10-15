@@ -1,6 +1,8 @@
 import speech_recognition.recog as sr
 import text_to_speech.output_tts as tts
 import text_extraction.image_process as im
+import ocr.ocr as ocr
+
 import re
 import cv2
 import threading
@@ -52,6 +54,19 @@ def voice_loop():
             processed_crops = im.process_image(frame, yolo_model, 15)
             print(processed_crops)
 
+            sorted_crops = sorted(
+                processed_crops.values(),
+                key=lambda crop: crop["coordinates"][1]
+            )
+
+            output_strings = ocr.img_to_text(sorted_crops)
+
+            for str in output_strings:
+                print(str)
+
+            # for str in output_strings:
+            #     tts.output_audio(str)
+
 
 def main():
 
@@ -67,6 +82,9 @@ def main():
     if not cap.isOpened():
         print("Could not open webcam!")
         return
+
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280) 
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)  
 
     voice_thread = threading.Thread(target=voice_loop, daemon=True)
     voice_thread.start()
