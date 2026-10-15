@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 from skimage.restoration import estimate_sigma
-from ultralytics import YOLO
 
 ## Measure the image quality ##
 def analyze_quality(gray):
@@ -136,7 +135,7 @@ def filter_image(image):
             )
             operations.append("adaptive_threshold")
 
-    return processed
+    return processed, operations
 
 ## Process the image ##
 def process_image(image, yolo_model, padding=5):
@@ -153,8 +152,7 @@ def process_image(image, yolo_model, padding=5):
     processed_crops = {}
 
     # Run YOLO
-    model = YOLO(yolo_model)
-    results = model(image)
+    results = yolo_model(image)
 
     if not results or results[0].boxes is None:
         return {}
@@ -198,7 +196,7 @@ def process_image(image, yolo_model, padding=5):
         processed_crops[index] = {
             "class_id": int(class_id),
             "class_name": class_name,
-            "coordinates": boxes,
+            "coordinates": [x1, y1, x2, y2],
             "processed_crop": filtered_crop,
         }
 
