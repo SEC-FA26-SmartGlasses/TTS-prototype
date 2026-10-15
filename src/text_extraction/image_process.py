@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from deskew import determine_skew
 from skimage.restoration import estimate_sigma
 from ultralytics import YOLO
 
@@ -33,6 +34,7 @@ def analyze_quality(gray):
     }
 
 ## Correct skew in text blocks ##
+## Correct skew in text blocks ##
 def correct_skew(image):
 
     # Grayscale
@@ -44,26 +46,12 @@ def correct_skew(image):
     else:
         gray = image
 
-    # Isolate text
-    _, binary = cv2.threshold(
-        gray,
-        0,
-        255,
-        cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
-    )
+    # Estimate skew angle using deskew
+    angle = determine_skew(gray)
 
-    # Find foreground
-    coord = np.column_stack(
-        np.where(binary > 0)
-    )
-
-    if len(coord) < 10:
+    # Handle cases where no angle is detected
+    if angle is None:
         return image.copy()
-    angle = cv2.minAreaRect(coord)[-1]
-    if angle < -45:
-        angle = -(90 + angle)
-    else:
-        angle = -angle
 
     # Avoid unnecessary rotation
     if abs(angle) < 0.5:
@@ -87,6 +75,7 @@ def correct_skew(image):
     )
 
     return corrected
+
 
 ## Apply filters ##
 def filter_image(image):
@@ -139,7 +128,7 @@ def filter_image(image):
     return processed, operations
 
 ## Process the image ##
-def process_image(image, yolo_model, padding=5):
+def process_image(image, yolo_model, padding=10):
     # Check for missing or invalid image
     if (
         image is None
