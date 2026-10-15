@@ -62,7 +62,9 @@ def init_asr_models():
         min_silence_duration_ms=700,
         speech_pad_ms=100,
     )
-    asr_model = pipeline("automatic-speech-recognition", model="nvidia/parakeet-tdt-0.6b-v3")
+    model_name = "nvidia/parakeet-tdt-0.6b-v3"
+    # model_name = "openai/whisper-tiny"
+    asr_model = pipeline("automatic-speech-recognition", model=model_name)
     asr_model.model.generation_config.max_new_tokens = 1000
 
     return vad_iterator, asr_model

@@ -2,6 +2,7 @@ import speech_recognition.recog as sr
 import text_to_speech.output_tts as tts
 import text_extraction.image_process as im
 import ocr.ocr as ocr
+# from paddleocr import PaddleOCR
 
 import re
 import cv2
@@ -32,6 +33,7 @@ def voice_loop():
     ww_model = sr.init_ww_model("hey_jarvis_v0.1")
     vad_iterator, asr_model = sr.init_asr_models()
     yolo_model = im.init_yolo_model("./src/models/text_extraction_model.pt")
+    # paddle_ocr = PaddleOCR(use_angle_cls=True, lang='en', enable_mkldnn=False)
 
     while not stop_event.is_set():
         sr.wait_for_wake_word(mic, ww_model)
@@ -51,7 +53,11 @@ def voice_loop():
             with frame_lock:
                 captured_frame = frame
 
-            processed_crops = im.process_image(frame, yolo_model, 15)
+
+            # result = paddle_ocr.predict(frame)
+            # for r in result:
+            #     print(r["rec_texts"])
+            processed_crops = im.process_image(frame, yolo_model, 30)
             print(processed_crops)
 
             sorted_crops = sorted(
@@ -64,8 +70,8 @@ def voice_loop():
             for str in output_strings:
                 print(str)
 
-            # for str in output_strings:
-            #     tts.output_audio(str)
+            for str in output_strings:
+                tts.output_audio(str)
 
 
 def main():
@@ -78,7 +84,7 @@ def main():
 
     global latest_frame, captured_frame
 
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     if not cap.isOpened():
         print("Could not open webcam!")
         return
