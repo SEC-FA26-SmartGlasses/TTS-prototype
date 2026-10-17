@@ -2,11 +2,15 @@ import speech_recognition.recog as sr
 import text_to_speech.output_tts as tts
 import text_extraction.image_process as im
 import ocr.ocr as ocr
-# from paddleocr import PaddleOCR
+from paddleocr import PaddleOCR
+import os
 
 import re
 import cv2
 import threading
+
+USE_PADDLE = False
+crops_dir = "E:/test_outputs/"
 
 stop_event = threading.Event()
 
@@ -33,7 +37,12 @@ def voice_loop():
     ww_model = sr.init_ww_model("hey_jarvis_v0.1")
     vad_iterator, asr_model = sr.init_asr_models()
     yolo_model = im.init_yolo_model("./src/models/text_extraction_model.pt")
-    # paddle_ocr = PaddleOCR(use_angle_cls=True, lang='en', enable_mkldnn=False)
+    if USE_PADDLE:
+        paddle_ocr = PaddleOCR(
+            text_detection_model_name="PP-OCRv6_tiny_det",
+            text_recognition_model_name="PP-OCRv6_tiny_rec",
+            use_angle_cls=True, lang='en', enable_mkldnn=False
+        )
 
     while not stop_event.is_set():
         sr.wait_for_wake_word(mic, ww_model)
@@ -54,24 +63,38 @@ def voice_loop():
                 captured_frame = frame
 
 
-            # result = paddle_ocr.predict(frame)
-            # for r in result:
-            #     print(r["rec_texts"])
-            processed_crops = im.process_image(frame, yolo_model, 30)
-            print(processed_crops)
 
-            sorted_crops = sorted(
-                processed_crops.values(),
-                key=lambda crop: crop["coordinates"][1]
-            )
+            output_strings = []
 
-            output_strings = ocr.img_to_text(sorted_crops)
+            if USE_PADDLE:
+                results = paddle_ocr.predict(frame)
+                for r in results:
+                    output_strings.extend(r["rec_texts"])
+            else:
+                processed_crops = im.process_image(frame, yolo_model, 50)
+                # print(processed_crops)
+
+                sorted_crops = sorted(
+                    processed_crops.values(),
+                    key=lambda crop: crop["coordinates"][1]
+                )
+                output_strings = ocr.img_to_text(sorted_crops)
+                # output_strings = ocr.img_to_text([{"processed_crop": frame}])
+                cv2.imwrite(os.path.join(crops_dir, f"frame.png"), frame)
+                for i, crop in enumerate(sorted_crops):
+                    crop_image = crop["processed_crop"]
+
+                    if crop_image is not None:
+                        filename = os.path.join(crops_dir, f"crop_{i:03d}.png")
+                        cv2.imwrite(filename, crop_image)
+                        print(f"Saved crop: {filename}")
 
             for str in output_strings:
                 print(str)
 
             for str in output_strings:
-                tts.output_audio(str)
+                if any(char.isalnum() for char in str):
+                    tts.output_audio(str)
 
 
 def main():
@@ -84,7 +107,7 @@ def main():
 
     global latest_frame, captured_frame
 
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("Could not open webcam!")
         return
