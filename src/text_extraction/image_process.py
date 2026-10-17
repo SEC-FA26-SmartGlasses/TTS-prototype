@@ -1,5 +1,9 @@
+import os
+import tempfile
 import cv2
 import numpy as np
+from py_reform import straighten
+from deskew import determine_skew
 from skimage.restoration import estimate_sigma
 from ultralytics import YOLO
 
@@ -44,26 +48,12 @@ def correct_skew(image):
     else:
         gray = image
 
-    # Isolate text
-    _, binary = cv2.threshold(
-        gray,
-        0,
-        255,
-        cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
-    )
+    # Estimate skew angle using deskew
+    angle = determine_skew(gray)
 
-    # Find foreground
-    coord = np.column_stack(
-        np.where(binary > 0)
-    )
-
-    if len(coord) < 10:
+    # Handle cases where no angle is detected
+    if angle is None:
         return image.copy()
-    angle = cv2.minAreaRect(coord)[-1]
-    if angle < -45:
-        angle = -(90 + angle)
-    else:
-        angle = -angle
 
     # Avoid unnecessary rotation
     if abs(angle) < 0.5:
@@ -87,6 +77,36 @@ def correct_skew(image):
     )
 
     return corrected
+
+def dewarp_image(image):
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = os.path.join(
+                temp_dir,
+                "input_page.png"
+            )
+
+            if not cv2.imwrite(input_path, image):
+                return image.copy()
+
+            corrected = straighten(
+                input_path,
+                model="uvdoc",
+                device="cpu"
+            )
+
+            corrected = np.array(
+                corrected.convert("RGB")
+            )
+
+            return cv2.cvtColor(
+                corrected,
+                cv2.COLOR_RGB2BGR
+            )
+
+    except Exception:
+        return image.copy()
+
 
 ## Apply filters ##
 def filter_image(image):
@@ -139,7 +159,7 @@ def filter_image(image):
     return processed, operations
 
 ## Process the image ##
-def process_image(image, yolo_model, padding=5):
+def process_image(image, yolo_model, padding=10):
     # Check for missing or invalid image
     if (
         image is None
@@ -148,6 +168,9 @@ def process_image(image, yolo_model, padding=5):
         or image.shape[2] != 3
     ):
         return {}
+
+    # Dewarp the full page
+    image = dewarp_image(image)
 
     h, w = image.shape[:2]
     processed_crops = {}
