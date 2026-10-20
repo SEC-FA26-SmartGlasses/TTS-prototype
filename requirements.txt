@@ -6,5 +6,12 @@ numpy
 silero_vad
 transformers
 ffmpeg
+pytesseract
+Pillow
+ultralytics
+opencv-python
+scikit-image
 pydub
 gtts
+opencv-python
+PyWavelets
