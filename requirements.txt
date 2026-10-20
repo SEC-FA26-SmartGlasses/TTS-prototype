@@ -19,3 +19,4 @@ audioop-lts
 deskew
 paddlepaddle
 paddleocr
+librosa
