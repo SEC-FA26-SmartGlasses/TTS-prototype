@@ -15,3 +15,7 @@ pydub
 gtts
 opencv-python
 PyWavelets
+audioop-lts
+deskew
+paddlepaddle
+paddleocr
