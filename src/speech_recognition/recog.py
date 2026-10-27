@@ -53,7 +53,15 @@ def get_command_audio(audio_stream, vad_iterator):
             frames.append(data)
     return b"".join(frames)
 
-def init_asr_models():
+def init_asr_model():
+    model_name = "nvidia/parakeet-tdt-0.6b-v3"
+    # model_name = "openai/whisper-tiny"
+    asr_model = pipeline("automatic-speech-recognition", model=model_name)
+    asr_model.model.generation_config.max_new_tokens = 1000
+
+    return asr_model
+
+def init_vad_model():
     vad_model = silero_vad.load_silero_vad()
     vad_iterator = silero_vad.VADIterator(
         vad_model,
@@ -62,46 +70,25 @@ def init_asr_models():
         min_silence_duration_ms=700,
         speech_pad_ms=100,
     )
-    model_name = "nvidia/parakeet-tdt-0.6b-v3"
-    # model_name = "openai/whisper-tiny"
-    asr_model = pipeline("automatic-speech-recognition", model=model_name)
-    asr_model.model.generation_config.max_new_tokens = 1000
+    return vad_iterator
 
-    return vad_iterator, asr_model
-
-def listen_for_command(mic, vad_iterator, asr_model):
+def listen_for_command(mic, vad_iterator):
     command_audio = get_command_audio(mic, vad_iterator) 
     audio_np = np.frombuffer(command_audio, dtype=np.int16)
+    return audio_np
 
-    # print(len(audio_np))
 
-    # feed audio back into ASR model
+def process_asr(audio, asr_model):
     out = asr_model({
-        "raw": audio_np,
+        "raw": audio,
         "sampling_rate": 16000,
         }
     )
-
-    # print(out)
-
     return out["text"]
 
 
 if __name__ == "__main__":
-    # how to initialize:
-    # initialize the voice models and microphone capture
-    mic = init_mic_capture()
-
-    ww_model = init_ww_model("hey_jarvis_v0.1")
-
-    vad_iterator, asr_model = init_asr_models()
-    
-    while True:
-        wait_for_wake_word(mic, ww_model)
-        print("What is your command?")
-
-        command = listen_for_command(mic, vad_iterator, asr_model)
-        print(command)
+    pass
 
 
   

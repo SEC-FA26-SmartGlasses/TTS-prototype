@@ -9,7 +9,7 @@ import re
 import cv2
 import threading
 
-USE_PADDLE = False
+USE_PADDLE = True
 crops_dir = "E:/test_outputs/"
 
 stop_event = threading.Event()
@@ -35,7 +35,8 @@ def voice_loop():
 
     mic = sr.init_mic_capture()
     ww_model = sr.init_ww_model("hey_jarvis_v0.1")
-    vad_iterator, asr_model = sr.init_asr_models()
+    vad_iterator = sr.init_vad_model()
+    asr_model = sr.init_asr_model()
     yolo_model = im.init_yolo_model("./src/models/text_extraction_model.pt")
     if USE_PADDLE:
         paddle_ocr = PaddleOCR(
@@ -46,24 +47,29 @@ def voice_loop():
 
     while not stop_event.is_set():
         sr.wait_for_wake_word(mic, ww_model)
+
+        frame = capture_frame()
+        if frame is None:
+            print("No camera frame available yet")
+            tts.output_audio("I can't see anything yet")
+            continue
+        with frame_lock:
+            captured_frame = frame
+
+
         print("wake word found")
         print("listening!")
-        command = sr.listen_for_command(mic, vad_iterator, asr_model)
+        audio = sr.listen_for_command(mic, vad_iterator)
+
+        
+
+
+        command = sr.process_asr(audio, asr_model)
         print(f"Read command: {command}")
 
         if TRIGGER_PATTERN.search(command.lower()): # OCR trigger
             print("Performing OCR!")
-            frame = capture_frame()
-            if frame is None:
-                print("No camera frame available yet")
-                tts.output_audio("I can't see anything yet")
-                continue
-
-            with frame_lock:
-                captured_frame = frame
-
-
-
+            
             output_strings = []
 
             if USE_PADDLE:
