@@ -10,7 +10,7 @@ import argparse
 import json
 
 
-SERVER_PORT = 51000
+SERVER_PORT = 9999
 
 stop_event = threading.Event()
 

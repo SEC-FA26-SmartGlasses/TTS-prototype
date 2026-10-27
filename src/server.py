@@ -9,8 +9,8 @@ import json
 
 from paddleocr import PaddleOCR
 
-SERVER_HOST = "127.0.0.1"
-SERVER_PORT = 51000
+SERVER_HOST = "0.0.0.0"
+SERVER_PORT = 9999
 
 OCR_TRIGGERS = ["read", "read this", "text"]
 TRIGGER_PATTERN = re.compile(
